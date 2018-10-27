@@ -1,0 +1,31 @@
+---
+title: "Heart attacks clustering"
+author: "Julia Sheriff"
+date: "10/23/2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+Spectral clustering:
+
+K-Means Clustering Algorithm process:
+1. specify desired number of clusters
+2. Randomly assign each data point to cluster
+3. Computer cluster centroids
+4. Reassign each point to the closest cluster centroid
+5. Recomputer cluster centroids
+6. Repeat 4 and 5 until no improvement is made 
+https://www.youtube.com/watch?v=NDbONg5lIqU
+
+Random Forest techniques works better with K-Means Clustering than no Clustering
+
+Analysis:
+Look for specific characteristics  within each cluster
+Look for specific trends within each cluster RELEVANT TO TARGET
+It's like looking at different "types/clusters" of scenarios as predictors for target
+
+
+

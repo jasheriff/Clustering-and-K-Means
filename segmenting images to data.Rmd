@@ -1,0 +1,201 @@
+---
+title: "segmenting images to data"
+author: "Julia Sheriff"
+date: "10/25/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+#flower image 
+
+##### How images are described in R 
+* Grayscale
+  + matrix of pixel intensities from 0 (black) to 1 (white) "Intensity matrices"
+  + 8bits/pixel (bpp) means 256 color levels
+  + decimals between 0 and 1 as matrix values indicate darkness
+  + number of columns indicates width (in pixels), number of rows indicates length
+  + clusters choose ranges of decimals to group matrix 
+  + input to clustering algorithm is the matrix described above, but reorganized
+  + each column will represent a decimal value/shade (ex. .2 or .1)
+    - done with as.vector() function
+* Distance matrix:
+  + Distance between elements of intensity vector. 
+  + Calculate "pairwise distance"" between each elements and the other elements
+  + Do this for each element in the cluster
+  + (will be done n*(n-1)/2 times) because of a to b is b to a 
+  
+Inputting data to matrix/vector/distance:
+```{r}
+flower <- read.csv("flower.csv", header = FALSE)
+#remember, default is header = TRUE
+
+str(flower) 
+#r doesn't read this like it represents a distance matrix. just reg vars and obs
+
+flowermatrix <- as.matrix(flower)
+#turned into matrix
+
+flowervector = as.vector(flowermatrix)
+str(flowervector)
+#turned into vector, dataframe with as.vector() command will return dataframe, not individual vectors
+
+#distance matrix:
+distance = dist(flowervector, method = "euclidean")
+str(distance)
+```
+
+Heigharachial clustering: 
+```{r}
+clusterintensity = hclust(distance, method = "ward") 
+
+#"ward" method minimizes variance within and distance between each clusterplot
+
+#make dendrogram 
+plot(clusterintensity)
+#3clusters on dentrogram represented with rectangular area
+rect.hclust(clusterintensity, k = 3, border = "red")
+
+#reminders: all observations are on the bottom row; vertical lengths represent distances between each cluster
+#suggestion: make cutoff/choose number of clusters where the distance between different numbers of clusters is the greatest
+
+#creates clusters via segmentation
+#see new matrix with same dimensions but with new values determined by cluster number:
+flowerclusters = cutree(clusterintensity, k = 3)
+flowerclusters
+str(flowerclusters)
+
+#means of clusters. higher number = lighter shade
+tapply(flowervector, flowerclusters, mean)
+
+#creates image as input by rewriting dimensions of vector into a matrix with original dimensions (50 x 50)
+dim(flowerclusters) = c(50, 50)
+image(flowerclusters, axes = FALSE)
+
+#review what initial greyscale image looks like 
+image(flowermatrix, axes = FALSE, col = grey(seq(0, 1, length = 256)))
+```
+
+-----
+
+#BrainScans
+
+viewing original image:
+```{r}
+healthy = read.csv("healthy.csv", header = FALSE)
+healthymatrix = as.matrix(healthy)
+str(healthmatrix)
+#resolution is indicated by dimensions. ex: [1:566, 1:646] means 566pixels by 646 pixels resolution
+image(healthymatrix, axes = FALSE, col = grey(seq(0, 1, length = 256)))
+#the grey(seq(0, 1, length = 256)) is description of greyscale image in r
+```
+
+trying to convert image to cluster 
+```{r}
+healthyvector = as.vector(healthymatrix)
+distance = dist(healthyvector, method = "euclidian")
+#gives error because vector is huge, 365636, 
+str(healthyvector)
+#so it would have to calculate 66844659430 :O
+365636 * (365636 - 1) / 2
+#solution: use kmeans clustering instead of heigharchial 
+```
+
+Kmeans clustering for healthy brain:
+review kmeans clustering algorithm:
+1. specify desired number of clusters (YOU CHOOSE IT)
+2. randomly assign each data point to a cluster
+3. compute cluster centroids (created by finding equal distance (mean) between points in cluster
+4. reassign each point to the closest cluster
+4. recompute cluster centroids
+6. repeat steps 4-5 until it can't be done anymore
+
+```{r}
+#choosing number of clusters: requires data knowledge. 
+#we choose 5 because there are 5 types of tissues in our brains
+#iter.max = 1000, means it can't repeat the process more than 1000 times
+k = 5
+set.seed(1)
+kmc = kmeans(healthyvector, centers = k, iter.max = 1000)
+str(kmc)
+
+#$cluster shows which string is assigned to which cluster
+
+#below, we extract cluster vector
+healthyclusters = kmc$cluster
+
+#how to we obtain the intensity value for each cluster?
+#that's stored in kmc$centers in order of the clusters 
+kmc$centers [1]
+kmc$centers [2]
+kmc$centers [3]
+kmc$centers [4]
+kmc$centers [5]
+
+#kmc$size shows how many observations are in each cluster.
+
+#creating image from clusters: 
+#dimensions are recalled by using nrow() and ncol() functions on original matrix image
+#rainbow allows R to select a given number of colors. Our number is k, 5, our number of clusters
+dim(healthyclusters) = c(nrow(healthymatrix), ncol(healthymatrix))
+image(healthyclusters, axes = FALSE, col = rainbow(k))
+```
+
+Kclustering on tumor brain: 
+
+```{r}
+tumor = read.csv("tumor.csv", header = FALSE)
+tumormatrix = as.matrix(tumor)
+tumorvector = as.vector(tumormatrix)
+
+#we treat healthy brain as training set and use tumor brain as testing set
+#must install new package
+
+install.packages("flexclust")
+library(flexclust)
+#contains kcca object class
+#we need to convert training algorithm (kmc) into kcca class
+
+kmc.kcca = as.kcca(kmc, healthyvector)
+tumorclusters = predict(kmc.kcca, newdata = tumorvector)
+dim(tumorclusters) = c(nrow(tumormatrix), ncol(tumormatrix))
+image(tumorclusters, axes = FALSE, col = rainbow(k))
+```
+
+######Comparing Methods
+
+* Linear relationship methods
+  + Linear regression
+    - used with continuous data
+    - predicts continuous outcome. 
+  + Logistic regression
+    - used with BINARY categorical data
+    - computes probabilities used to assess confidence of prediction
+* Categorical data or continuous data (can be nonlinear)
+  + CART
+    - can have linear or non-linear relationship
+    - predicts catogial outcome or continuous outcome 
+    - only works well with large datasets 
+    - easy to explain and interpret (TREE)
+  + Random Forests
+    - predicts catogial outcome or continuous outcome 
+    - can be more accurate than CART
+    - not as easy to explain as CART; many parameters to adjust
+* Clustering methods
+  + Hierarchieal clustering
+    - finds similar groups
+    - clusters into smaller groups and applies predictive modeling on groups 
+    - don't need to select number of clusters
+    - dendrogram visualization
+    - can't use with large datasets
+  + K-Means Clustering
+    - finds similar groups
+    - clusters into smaller groups and applies predictive modeling on groups
+    - must know number of desired clusters 
+    - works with small or large datasets 
+
+

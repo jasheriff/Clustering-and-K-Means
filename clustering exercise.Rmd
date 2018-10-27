@@ -1,0 +1,162 @@
+---
+title: "clustering exercise"
+author: "Julia Sheriff"
+date: "10/27/2018"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+This mini-project is based on the K-Means exercise from 'R in Action'
+Go here for the original blog post and solutions
+http://www.r-bloggers.com/k-means-clustering-from-r-in-action/
+
+Exercise 0: Install these packages if you don't have them already
+
+
+install.packages("cluster")
+install.packages("rattle.data")
+install.packages("NbClust")
+
+
+load the data and look at the first few rows
+```{r}
+data(wine, package="rattle.data")
+head(wine)
+str(wine)
+```
+
+----
+
+#HELP- Whats the difference between the code below versus: 
+##data2 <- wine[ , 2:14]? 
+##Is the code below the equivalent of developing a kmeans training set?
+
+```{r}
+data <- scale(wine[-1])
+str(data)
+```
+----
+
+#HELP: 
+##Talk me through the code
+##How do I interpret these two graphs? What are the most important considerations? 
+#### Method 1-deciding number of clusters: 
+* A plot of the total within-groups sums of squares against the number of clusters in a K-means solution can be helpful. 
+* A bend in the graph can suggest the appropriate number of clusters. 
+
+---
+
+length(data)
+wssplot <- function(data, nc=15, seed=1234){
+	              wss <- (nrow(data)-1)*sum(apply(data,2,var))
+               	      for (i in 2:nc){
+		        set.seed(seed)
+	                wss[i] <- sum(kmeans(data, centers=i)$withinss)}
+	                
+		      plot(1:nc, wss, type="b", xlab="Number of Clusters",
+	                        ylab="Within groups sum of squares")
+	   }
+
+wssplot(df)
+
+---
+
+* How many clusters does this method suggest? 
+  + ??? 
+* Why does this method work? What's the intuition behind it? We want clusters to be meaningful. 
+  + A good number of clusters will clearly reduce the sum of squares, when comparing to an (n-1) number of clusters
+
+---
+
+#### Method 2 for figuring out # of clusters: 
+Use the NbClust library, which runs many experiments and gives a distribution of potential number of clusters.
+
+---
+
+library(NbClust)
+set.seed(1234)
+nc <- NbClust(df, min.nc=2, max.nc=15, method="kmeans")
+View(nc)
+nctable <- table(nc$Best.n[1,])
+View(nctable)
+barplot(table(nc$Best.n[1,]),
+	          xlab="Numer of Clusters", ylab="Number of Criteria",
+		            main="Number of Clusters Chosen by 26 Criteria")
+---
+
+How many clusters does this method suggest?
+* ?? 
+* ??
+
+---
+
+#### Exercise 4: Once you've picked the number of clusters, run k-means 
+#HELP:
+##What's most important to consider in the output of str()?
+Output the result of calling kmeans() into a variable fit.km
+* adding nstart=25 will generate 25 initial configurations. This approach is often recommended.
+
+```{r}
+#exercise suggested 3
+fit.km3 <- kmeans(data, 3, nstart = 25)
+str(fit.km3)
+fit.km3$size
+fit.km3$centers
+aggregate(wine[-1], by = list(cluster = fit.km3$cluster), mean)
+
+```
+I want to try 4 also:
+```{r}
+fit.km4 <- kmeans(data, 4, nstart = 25)
+str(fit.km4)
+fit.km4$size
+fit.km4$centers
+aggregate(wine[-1], by = list(cluster = fit.km4$cluster), mean)
+
+```
+---
+
+#HELP:
+##What does randIndex really do?
+
+1. Using the table() function, show how the clusters in fit.km$clusters
+* ct stands for cross tabulation, this process of evaluation
+2. Use randIndex to evaluate
+* The adjusted Rand index provides a measure of the agreement between two partitions, adjusted for chance. It ranges from -1 (no agreement) to 1 (perfect agreement). Agreement between the wine varietal type and the cluster solution is 0.9.
+
+```{r}
+library(flexclust)
+```
+
+```{r}
+#with 3
+ct.km3 <- table(wine$Type, fit.km3$cluster)
+ct.km3
+randIndex(ct.km3)
+#0.897495 
+```
+with 4:
+```{r}
+ct.km4 <- table(wine$Type, fit.km4$cluster)
+ct.km4
+randIndex(ct.km4)
+#0.7535909
+#using 3 clusters is better
+```
+
+---
+
+#HELP 
+##How do I use clusplot()?
+######Visualize these clusters using  function clusplot() from the cluster library
+* Would you consider this a good clustering?
+
+
+library(cluster)
+clusplot()
+clusplot()

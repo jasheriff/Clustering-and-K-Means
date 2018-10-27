@@ -1,0 +1,220 @@
+---
+title: "clustering_good"
+author: "Julia Sheriff"
+date: "10/21/2018"
+output: html_document
+---
+
+"Collaborative filtering"
+comparing the preferences between people to predict other preferences. If melina and brandon generally like the same films, brandon will probably like a film that melina rated well.
+-don't have to understand the items people liked
+-needs a lot of user data to work well
+
+"Content filtering"
+using facets from one thing someone liked to predict other things they may like. EX: if they liked one movie starring Will Smith, they might like another moving starring Will Smith 
+-requires little data
+-limited in scope
+
+Combine methods for best predictions
+
+---
+
+"unsupervised learning"
+Can we find sets with similar combinations of genres?
+-breaks data into similar groups
+-then, make a predictive model for each group
+types of algorithms for clustering, including:
+-hierarchial
+-k-means
+
+---
+
+How to cluster:
+Find distance between individual data points:
+-"Euclidian distance" standard distance formula. (each variable is like a dimension)
+-uses binary for distance. 0 if doesn't meet category, 1 if does meet category
+
+Find distance between clusters:
+"Minimum distance" - defines distance as the distance between points which are the closest
+"Maximum distance" - defines distance as the distance between points which are the farthest away
+"Centroid distance" (BEST) -defines distance as the distance between the point that is the averages of all data points in each cluster
+-Considerations:
+--scale (numerical size/quantification) of variables. If some variables naturally have large quantities, they will skew the distance formula.
+----solution: "normalize" by subtracting the mean and dividing by the standard deviation
+--importance/weight of variables
+
+--- 
+
+"Heirarchial Clustering":
+-Starts with each data point being labeled in its own cluster
+-When individual clusters are close, they join the same cluster, and this repeats
+-At end of process, all points are in the same cluster
+-Cluster process can be shown in a tree "Dendogram"", which shows   -distance between clusters on y axis
+ -branches spreading out along x axis
+ -first points which were connected are at the bottom, with the last clusters near the top 
+ 
+-How to choose a good number of clusters:
+ -consider how many clusters make sense for this type of data
+ -If a line is long between clusters (they're not really that close), that's a good place to choose to keep the clusters separate 
+Once points are clustered well,
+Look at mean, min, and max in each cluster and variable
+Do the clusters have a feature in common? (like outcome)
+Is so, the clusters will probably useful for predictive analytics
+
+
+---
+DOWNLOADING RANDOM LOOKING TEXT FILES AS DATA:
+1. copy and paste data into a text editor document
+2. save as plaintext
+3. replace "|" with"," using command F function in text edit
+4. After saving with txt extension, rewrite with .csv extension
+
+Giving titles to column names: 
+```{r}
+knitr::opts_chunk$set(echo = TRUE)
+movies = read.csv("movieLens.csv")
+str(movies)
+View(movies)
+colnames(movies) = c("ID", "Title", "ReleaseDate", "VideoReleaseDate", "IMDB", "Unknown", "Action", "Adventure", "Animation", "Childrens", "Comedy", "Crime", "Documentary", "Drama", "Fantasy", "FilmNoir", "Horror", "Musical", "Mystery", "Romance", "SciFi", "Thriller", "War", "Western")
+```
+removing columns we didn't want to use:
+```{r}
+str(movies)
+movies$ID = NULL
+movies$ReleaseDate = NULL
+movies$VideoReleaseDate = NULL
+movies$IMDB = NULL
+```
+removing duplicate columns: 
+```{r}
+movies <- unique(movies)
+```
+checking for NA or empty strings and removing / editing data
+```{r}
+View(movies)
+unique(movies$Unknown)
+sum(movies$Unknown == "")
+#29 inc
+which(movies$Unknown == "")
+(sum(movies$Unknown == ""))/nrow(movies)
+#what to do with NA values with binary data?
+
+unique(movies$Action)
+sum(movies$Action == "")
+which(movies$Action == "")
+
+unique(movies$Adventure)
+sum(movies$Action == "")
+which(movies$Adventure == "")
+
+unique(movies$Animation)
+sum(movies$Animation == "")
+which(movies$Animation == "")
+
+unique(movies$Childrens)
+sum(movies$Childrens == "")
+which(movies$Childrens == "")
+
+unique(movies$Comedy)
+sum(is.na(movies$Comedy))
+which(is.na(movies$Comedy))
+
+unique(movies$Crime)
+which(is.na(movies$Crime))
+
+unique(movies$Documentary)
+which(is.na(movies$Documentary))
+
+unique(movies$Drama)
+which(is.na(movies$Drama))
+
+unique(movies$Fantasy)
+which(is.na(movies$Fantasy))
+
+unique(movies$FilmNoir)
+which(is.na(movies$FilmNoir))
+
+unique(movies$Horror)
+which(is.na(movies$Horror))
+```
+below: get rid of rows 12 19 414 which were NA for all facets
+```{r}
+good <- which(is.na(movies$Horror) == FALSE)
+table(good)
+moviesgood <- movies[good, ]
+
+unique(moviesgood$Musical)
+unique(moviesgood$Mystery)
+unique(moviesgood$Romance)
+unique(moviesgood$SciFi)
+unique(moviesgood$Thriller)
+unique(moviesgood$War)
+unique(moviesgood$Western)
+```
+removed lines that repeatedly had missing data. For "Unknown" facet, there were 26 other empty rows. I'm going to change those to zeros below:
+
+```{r}
+library(dplyr)
+movies2 <- moviesgood %>% mutate(Unknown = ifelse(Unknown != "0", "1", "0"))
+movies3 <- movies2 %>% mutate(Action = ifelse(Unknown != "0", "1", "0"))
+movies4 <- movies3 %>% mutate(Adventure = ifelse(Unknown != "0", "1", "0"))
+movies5 <- movies4 %>% mutate(Childrens = ifelse(Unknown != "0", "1", "0"))
+movies6 <- movies5 %>% mutate(Animation = ifelse(Unknown != "0", "1", "0"))
+str(movies6)
+```
+Creating binary INTEGER columns (changing Unknown - Animation to binary from character)
+```{r}
+
+movies6$Unknown <- as.integer(movies6$Unknown)
+movies6$Action <- as.integer(movies6$Action)
+movies6$Adventure <- as.integer(movies6$Adventure)
+movies6$Animation <- as.integer(movies6$Animation)
+movies6$Childrens <- as.integer(movies6$Childrens)
+str(movies6)
+```
+
+#if i wanted to make numeric variables, I would do this
+movies7 <- movies6 %>% 
+  mutate("Unknown" = if_else(Unknown == "1", 1, 0)) %>%
+  mutate("Action" = if_else(Action == "1", 1, 0)) %>%
+  mutate("Adventure" = if_else(Adventure == "1", 1, 0)) %>%
+  mutate("Childrens" = if_else(Childrens == "1", 1, 0)) %>%
+  mutate("Animation" = if_else(Animation == "1", 1, 0))
+
+Computing distances between points:
+dist function
+```{r}
+distances = dist(movies6[2:20], method = "euclidian")
+```
+#do heigharchial clustering / dendrogram 
+(can't read dendrogram because there is too much data)
+```{r}
+clusterMovies = hclust(distances, method = "ward")
+plot(clusterMovies)
+```
+choose number of clusters by what makes sense
+```{r}
+clusterGroups = cutree(clusterMovies, k = 10)
+```
+find what percentage of Action movies are in each cluster
+```{r}
+tapply(movies6$Action, clusterGroups, mean)
+```
+
+GOOD IDEA: Make a table of the percentages generated from commands above
+Rows: Each Genre
+Row content: ex: output  of 201
+Columns: Each cluster
+Take note of which clusters are strong predictors (high percentage) of centain genres
+
+Find which cluster a specific movie is in:
+And make a list of all movies in that cluster
+```{r}
+subset(movies6, Title == "Men in Black (1997)")
+clusterGroups[257]
+cluster3 = subset(movies6, clusterGroups == 2)
+#you are applying clusterGroups vector to movies6
+cluster3$Title
+```
+
+
